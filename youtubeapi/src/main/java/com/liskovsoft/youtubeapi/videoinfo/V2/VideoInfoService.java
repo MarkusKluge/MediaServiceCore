@@ -185,7 +185,36 @@ public class VideoInfoService extends VideoInfoServiceBase {
             result.setClient(client);
         }
 
+        logFormatSummary(client, videoId, result);
+
         return result;
+    }
+
+    private static void logFormatSummary(AppClient client, String videoId, VideoInfo result) {
+        if (result == null) {
+            Log.d(TAG, "Video info %s %s: no response", client, videoId);
+            return;
+        }
+
+        int withUrl = 0, broken = 0, maxHeight = 0, maxFps = 0;
+
+        if (result.getAdaptiveFormats() != null) {
+            for (com.liskovsoft.youtubeapi.videoinfo.models.formats.AdaptiveVideoFormat format : result.getAdaptiveFormats()) {
+                if (format.isBroken()) {
+                    broken++;
+                    continue;
+                }
+                withUrl++;
+                if (format.getHeight() > maxHeight) {
+                    maxHeight = format.getHeight();
+                    maxFps = format.getFps();
+                }
+            }
+        }
+
+        Log.d(TAG, "Video info %s %s: status=%s, unplayable=%s, formats=%s (no url: %s), max=%sp%s, sabr=%s",
+                client, videoId, result.getPlayabilityStatus(), result.isUnplayable(), withUrl, broken, maxHeight, maxFps,
+                result.getServerAbrStreamingUrl() != null);
     }
 
     private VideoInfo getVideoInfo(AppClient client, String videoInfoQuery) {
