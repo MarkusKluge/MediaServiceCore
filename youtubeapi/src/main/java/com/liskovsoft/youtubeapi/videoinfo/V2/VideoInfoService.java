@@ -28,6 +28,7 @@ public class VideoInfoService extends VideoInfoServiceBase {
     private final VideoInfoApi mVideoInfoApi;
     private boolean mUseAuth;
     private List<TranslationLanguage> mCachedTranslationLanguages;
+    private boolean mTranslationLanguagesFetched;
 
     private VideoInfoService() {
         mVideoInfoApi = RetrofitHelper.create(VideoInfoApi.class);
@@ -208,7 +209,10 @@ public class VideoInfoService extends VideoInfoServiceBase {
         if (needMoreSubtitles(result)) {
             Log.d(TAG, "Enable full list of auto generated subtitles...");
 
-            if (mCachedTranslationLanguages == null || mCachedTranslationLanguages.size() < 100) {
+            // LOCAL: only once per session. The list was re-fetched before every video (blocking the start
+            // ~0.5 s) whenever it had less than 100 entries.
+            if (!mTranslationLanguagesFetched) {
+                mTranslationLanguagesFetched = true;
                 mUseAuth = false;
                 VideoInfo webInfo = null;
                 try {
