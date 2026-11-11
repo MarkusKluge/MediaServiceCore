@@ -65,7 +65,9 @@ public abstract class VideoInfoServiceBase {
             }
         urlHolders.add(videoInfo.getUrlHolder());
 
+        long t0 = System.currentTimeMillis(); // LOCAL: timing diagnostics
         Pair<List<String>, List<String>> result = mAppService.bulkSigExtract(videoInfo.getClient(), extractNParams(urlHolders), extractSParams(urlHolders));
+        Log.d(TAG, "Timing: sig/n extract %d ms (%d urls)", System.currentTimeMillis() - t0, urlHolders.size());
 
         if (result != null) {
             List<String> nParams = result.getFirst();
@@ -75,7 +77,9 @@ public abstract class VideoInfoServiceBase {
             applySignatures(urlHolders, signatures);
         }
 
+        long t1 = System.currentTimeMillis();
         String poToken = PoTokenGate.getPoToken(videoInfo.getClient(), videoInfo.getVideoDetails().getVideoId());
+        Log.d(TAG, "Timing: poToken %d ms", System.currentTimeMillis() - t1);
         videoInfo.setPoToken(poToken);
         applySessionPoToken(urlHolders, poToken);
     }

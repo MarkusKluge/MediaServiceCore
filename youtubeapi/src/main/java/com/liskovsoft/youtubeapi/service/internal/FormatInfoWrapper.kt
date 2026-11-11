@@ -56,11 +56,14 @@ internal object FormatInfoWrapper {
                     return cachedFormatInfo
                 }
 
+                val t0 = System.currentTimeMillis() // LOCAL: timing diagnostics
                 checkSigned()
+                val t1 = System.currentTimeMillis()
 
                 AppService.instance().resetClientPlaybackNonce() // history fix: unique value per each format info
 
                 val formatInfo = firstPlayable(videoId, clickTrackingParams)
+                android.util.Log.d("FormatInfoWrapper", "Timing: checkSigned ${t1 - t0} ms, firstPlayable ${System.currentTimeMillis() - t1} ms")
 
                 mIsUnplayable = formatInfo?.isUnplayable ?: true
 

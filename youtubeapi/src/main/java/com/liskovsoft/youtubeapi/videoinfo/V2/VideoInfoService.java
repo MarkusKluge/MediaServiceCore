@@ -27,7 +27,7 @@ public class VideoInfoService extends VideoInfoServiceBase {
     private static VideoInfoService sInstance;
     private final VideoInfoApi mVideoInfoApi;
     private boolean mUseAuth;
-    private List<TranslationLanguage> mCachedTranslationLanguages;
+    private volatile List<TranslationLanguage> mCachedTranslationLanguages;
     private boolean mTranslationLanguagesFetched;
 
     private VideoInfoService() {
@@ -50,16 +50,22 @@ public class VideoInfoService extends VideoInfoServiceBase {
 
         mUseAuth = true;
 
+        long t0 = System.currentTimeMillis(); // LOCAL: timing diagnostics
         VideoInfo result = getVideoInfoWithRentFix(client, videoId, clickTrackingParams);
+        Log.d(TAG, "Timing %s: player request %d ms", client, System.currentTimeMillis() - t0);
 
         if (result == null) {
             Log.e(TAG, "Can't get video info. videoId: %s", videoId);
             return null;
         }
 
+        long t1 = System.currentTimeMillis();
         applyFixesIfNeeded(result, videoId, clickTrackingParams);
+        Log.d(TAG, "Timing %s: fixes %d ms", client, System.currentTimeMillis() - t1);
+        t1 = System.currentTimeMillis();
 
         transformFormats(result);
+        Log.d(TAG, "Timing %s: transform formats %d ms", client, System.currentTimeMillis() - t1);
 
         return result;
     }
@@ -209,20 +215,21 @@ public class VideoInfoService extends VideoInfoServiceBase {
         if (needMoreSubtitles(result)) {
             Log.d(TAG, "Enable full list of auto generated subtitles...");
 
-            // LOCAL: only once per session. The list was re-fetched before every video (blocking the start
-            // ~0.5 s) whenever it had less than 100 entries.
+            // LOCAL: once per session and in the background. The list was re-fetched before every video whenever
+            // it had less than 100 entries, blocking the start (0.5 s, up to 5.7 s on the first video of a session).
+            // WEB_DUMMY never uses auth, so mUseAuth isn't touched. The first video gets the short list.
             if (!mTranslationLanguagesFetched) {
                 mTranslationLanguagesFetched = true;
-                mUseAuth = false;
-                VideoInfo webInfo = null;
-                try {
-                    webInfo = getVideoInfoReal(AppClient.WEB_DUMMY, videoId, clickTrackingParams);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                if (webInfo != null) {
-                    mCachedTranslationLanguages = webInfo.getTranslationLanguages();
-                }
+                new Thread(() -> {
+                    try {
+                        VideoInfo webInfo = getVideoInfoReal(AppClient.WEB_DUMMY, videoId, clickTrackingParams);
+                        if (webInfo != null) {
+                            mCachedTranslationLanguages = webInfo.getTranslationLanguages();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }, "TranslationLanguages").start();
             }
 
             if (mCachedTranslationLanguages != null) {
