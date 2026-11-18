@@ -22,6 +22,7 @@ internal object FormatInfoWrapper {
     private val lock = Any()
     private val CLIENT_LIST = arrayOf(
         Pair(AppClient.TV, ProviderType.LEGACY), // Supports auth. Fixes "please sign in" bug! (the best for Premium users)
+        Pair(AppClient.TV_SAMSUNG, ProviderType.LEGACY), // Supports auth. Still contains DASH formats
         Pair(AppClient.WEB, ProviderType.INNERTUBE), // Fix video clip blocked in current location
         Pair(AppClient.VISIONOS, ProviderType.LEGACY), // no url formats
         Pair(AppClient.TV_DOWNGRADED, ProviderType.LEGACY), // works with old UAs like old Cobalt and old Xbox (non-tcl players)
@@ -60,8 +61,6 @@ internal object FormatInfoWrapper {
                 checkSigned()
                 val t1 = System.currentTimeMillis()
 
-                AppService.instance().resetClientPlaybackNonce() // history fix: unique value per each format info
-
                 val formatInfo = firstPlayable(videoId, clickTrackingParams)
                 android.util.Log.d("FormatInfoWrapper", "Timing: checkSigned ${t1 - t0} ms, firstPlayable ${System.currentTimeMillis() - t1} ms")
 
@@ -99,6 +98,16 @@ internal object FormatInfoWrapper {
     }
 
     @JvmStatic
+    fun switchNextSubtitle() {
+        getVideoInfoService().switchNextSubtitle()
+    }
+
+    @JvmStatic
+    fun allowRestrictedVideos(allow: Boolean) {
+        getVideoInfoService().allowRestrictedVideos(allow)
+    }
+
+    @JvmStatic
     fun syncWithAuthInfoIfNeeded(formatInfo: MediaItemFormatInfo?) {
         if (formatInfo == null) {
             return
@@ -119,9 +128,9 @@ internal object FormatInfoWrapper {
     }
 
     private fun firstPlayable(videoId: String, clickTrackingParams: String?): MediaItemFormatInfo? {
-        val result = firstInfoWith(videoId, clickTrackingParams) { !it.isUnplayable() }
-
-        return result ?: firstInfoWith(videoId, clickTrackingParams) { it.urlFormats != null }
+        return firstInfoWith(videoId, clickTrackingParams) { !it.isUnplayable() }
+            ?: firstInfoWith(videoId, clickTrackingParams) { it.urlFormats != null } // fallback to regular formats (480p)
+            ?: firstInfoWith(videoId, clickTrackingParams) { true } // fallback to error result
     }
 
     private fun firstInfoWith(videoId: String, clickTrackingParams: String?, infoTester: (MediaItemFormatInfo) -> Boolean): MediaItemFormatInfo? {
@@ -129,6 +138,9 @@ internal object FormatInfoWrapper {
         var nextClient = beginClient
 
         do {
+            // NOTE: History fix. CPN should be unique per each /player fetch
+            AppService.instance().resetClientPlaybackNonce()
+
             val result = getProvider(nextClient)(nextClient.first, videoId, clickTrackingParams)
 
             if (result != null && infoTester(result)) {
