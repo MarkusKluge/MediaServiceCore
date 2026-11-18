@@ -66,6 +66,7 @@ internal object RetrofitOkHttpHelper {
     private fun createClient(): OkHttpClient {
         val builder = OkHttpManager.instance().client.newBuilder()
         addCommonHeaders(builder)
+        builder.eventListenerFactory(SlowCallLogger.FACTORY) // LOCAL: diagnostics, log only
         //addCronetInterceptor(builder)
         return builder.build()
     }
