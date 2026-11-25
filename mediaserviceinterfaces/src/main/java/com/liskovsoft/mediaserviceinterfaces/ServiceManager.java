@@ -10,7 +10,8 @@ public interface ServiceManager {
     NotificationsService getNotificationsService();
     ChannelGroupService getChannelGroupService();
     void invalidateCache();
-    void refreshCacheIfNeeded();
+    void invalidateFormatCache();
+    void warmUpCacheIfNeeded();
     void switchNextClient();
     void switchNextClientNow();
     void switchNextSubsFormat();
