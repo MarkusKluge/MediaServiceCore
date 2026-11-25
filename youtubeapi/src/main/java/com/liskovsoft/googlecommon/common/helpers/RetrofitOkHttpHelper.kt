@@ -67,6 +67,9 @@ internal object RetrofitOkHttpHelper {
         val builder = OkHttpManager.instance().client.newBuilder()
         addCommonHeaders(builder)
         builder.eventListenerFactory(SlowCallLogger.FACTORY) // LOCAL: diagnostics, log only
+        // LOCAL: an unreachable IP took the full 20 s per address; with 8 addresses an oauth token call hung 160 s
+        // (2026-11-25). Fail fast and let OkHttp try the next address.
+        builder.connectTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
         //addCronetInterceptor(builder)
         return builder.build()
     }
